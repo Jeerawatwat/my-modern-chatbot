@@ -5,30 +5,29 @@ import base64
 import PyPDF2
 import google.generativeai as genai
 
-# ==========================================
-# 1. ส่วนการตกแต่ง (Styles & HTML Customization)
-# ==========================================
+# --- [ส่วนที่ 1: การตกแต่ง - ดึงมาจาก HTML.txt และ Styles] ---
 def apply_custom_css():
     st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;600;700&family=Sarabun:wght@300;400;600;700&display=swap');
 
-    /* พื้นหลัง Nebula + Glassmorphism จากไฟล์ HTML ของคุณ */
+    /* พื้นหลัง Nebula & Glassmorphism จาก HTML ของคุณ */
     .stApp {
-        background: radial-gradient(circle at 50% 50%, #fdfdfd 0%, #e8f0eb 100%) !important;
-        font-family: 'Sarabun', sans-serif !important;
+        background: radial-gradient(circle at bottom center, #121c30, #080c1c) !important;
+        background-attachment: fixed !important;
+        color: #f5faff;
     }
 
-    /* Sidebar ตกแต่งแบบ iOS Style */
+    /* ตกแต่ง Sidebar แบบโปร่งแสง */
     [data-testid="stSidebar"] {
-        background-color: rgba(255, 255, 255, 0.4) !important;
-        backdrop-filter: blur(25px) saturate(150%);
-        border-right: 1px solid rgba(0, 102, 51, 0.1);
+        background-color: rgba(255, 255, 255, 0.03) !important;
+        backdrop-filter: blur(15px);
+        border-right: 1px solid rgba(255, 255, 255, 0.1);
     }
 
-    /* ชื่อมหาวิทยาลัยพร้อมเอฟเฟกต์ Shine และ Float */
+    /* ตัวหนังสือชื่อมหาลัยแบบเรืองแสง (Shine Effect) */
     .univ-name {
-        background: linear-gradient(90deg, #006633, #b5a01e, #006633);
+        background: linear-gradient(90deg, #00ffcc, #f472b6, #00ffcc);
         background-size: 200% auto;
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
@@ -36,193 +35,70 @@ def apply_custom_css():
         font-size: 28px;
         font-weight: 700;
         text-align: center;
-        animation: shineText 3s linear infinite, float 4s ease-in-out infinite;
-        padding: 10px 0;
+        animation: shine 3s linear infinite;
     }
+    @keyframes shine { to { background-position: 200% center; } }
 
-    @keyframes shineText { to { background-position: 200% center; } }
-    @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
-
-    /* ปุ่มกด (Buttons) - ลูกเล่นจัดเต็มแบบ Neo-Brutalism */
-    div.stButton > button {
-        background: rgba(255, 255, 255, 0.9) !important;
-        color: #006633 !important;
-        border: 1px solid rgba(0, 102, 51, 0.1) !important;
-        border-radius: 18px !important;
-        padding: 14px 20px !important;
-        font-weight: 600 !important;
-        width: 100%;
-        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
-    }
-
-    div.stButton > button:hover {
-        transform: translateY(-5px) scale(1.03) !important;
-        background: linear-gradient(135deg, #006633 0%, #004d26 100%) !important;
-        color: #E2C792 !important;
-        box-shadow: 0 15px 30px rgba(0, 102, 51, 0.2) !important;
-    }
-
-    /* กล่องแชท (Chat Bubbles) */
+    /* ตกแต่งกล่องแชท */
     .stChatMessage {
-        background: rgba(255, 255, 255, 0.8) !important;
-        backdrop-filter: blur(10px);
-        border-radius: 25px !important;
-        border: 1px solid rgba(255, 255, 255, 0.5) !important;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04) !important;
+        background: rgba(255, 255, 255, 0.05) !important;
+        border-radius: 20px !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
     }
-
-    header {visibility: hidden;}
-    footer {visibility: hidden;}
     </style>
     """, unsafe_allow_html=True)
 
-# ==========================================
-# 2. ส่วนคำนวณและข้อมูล (Logic & Data)
-# ==========================================
-
-translation = {
-    "TH": {
-        "univ_name": "Kasetsart University",
-        "campus": "SRIRACHA CAMPUS",
-        "new_chat": "➕ เริ่มบทสนทนาใหม่",
-        "exam_table": "📅 ค้นหาตารางสอบ",
-        "gpa_calc": "🧮 คำนวณเกรด (GPA)",
-        "forms": "📄 ดาวน์โหลดแบบฟอร์ม",
-        "input_placeholder": "พิมพ์ถามพี่นนทรีได้เลย...",
-        "welcome": "สวัสดีครับนิสิต!",
-        "ai_identity": "พี่นนทรี AI รุ่นพี่ มก.ศรช. ยินดีที่ได้พบคุณครับ",
-        "loading": "พี่นนทธีกำลังหาข้อมูลให้นะจ๊ะ...",
-        "not_found": "ข้อมูลส่วนนี้พี่ยังไม่มีในระบบ รบกวนน้องตรวจสอบที่เว็บ reg.src.ku.ac.th อีกทีนะจ๊ะ"
-    },
-    "EN": {
-        "univ_name": "Kasetsart University",
-        "campus": "SRIRACHA CAMPUS",
-        "new_chat": "➕ New Conversation",
-        "exam_table": "📅 Exam Schedule",
-        "gpa_calc": "🧮 GPA Calculator",
-        "forms": "📄 Student Forms",
-        "input_placeholder": "Ask Nontri anything...",
-        "welcome": "Hello Student!",
-        "ai_identity": "I'm Nontri AI, your friendly KU Sriracha senior buddy.",
-        "loading": "Nontri is thinking...",
-        "not_found": "I don't have this info yet. Please check reg.src.ku.ac.th"
-    }
-}
-
+# --- [ส่วนที่ 2: ระบบประมวลผล - ดึงมาจาก Logic] ---
 def get_room_info(room_code, lang):
     code = re.sub(r'\D', '', str(room_code))
-    if len(code) == 5:
-        b, f, r = code[:2], code[2], code[3:]
-        return f"อ๋อ ห้องนี้อยู่ **ตึก {b} ชั้น {f} ห้อง {r}** ครับน้อง" if lang == "TH" else f"Building {b}, Floor {f}, Room {r}."
-    elif len(code) == 4:
-        b, f, r = code[0], code[1], code[2:]
-        return f"ห้องนี้คือ **ตึก {b} ชั้น {f} ห้อง {r}** ครับผม" if lang == "TH" else f"Building {b}, Floor {f}, Room {r}."
+    if len(code) >= 4:
+        b, f = code[0:2], code[2]
+        return f"📍 ห้องนี้อยู่ **ตึก {b} ชั้น {f}** ครับ" if lang == "TH" else f"📍 Located at **Building {b}, Floor {f}**."
     return None
 
 @st.cache_resource
 def load_model():
-    api_key = st.secrets.get("GEMINI_API_KEY")
+    # ใส่ API Key ของคุณตรงนี้ หรือใช้ st.secrets
+    api_key = st.secrets.get("GEMINI_API_KEY") 
     if not api_key: return None
     genai.configure(api_key=api_key)
-    try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        return model
-    except: return None
+    return genai.GenerativeModel('gemini-1.5-flash')
 
-def get_knowledge_base():
-    combined_text = ""
-    # อ่านไฟล์ TXT
-    if os.path.exists("ku_data.txt"):
-        with open("ku_data.txt", "r", encoding="utf-8") as f: txt_data = f.read()
-        combined_text += txt_data
-    
-    # อ่านไฟล์ PDF ในโฟลเดอร์ knowledge_pool
-    directory = "knowledge_pool"
-    if not os.path.exists(directory): os.makedirs(directory)
-    pdf_files = [f for f in os.listdir(directory) if f.endswith(".pdf")]
-    for filename in pdf_files:
-        try:
-            with open(os.path.join(directory, filename), "rb") as f:
-                pdf = PyPDF2.PdfReader(f)
-                combined_text += f"\n\n--- ข้อมูลจากไฟล์: {filename} ---\n"
-                for page in pdf.pages:
-                    combined_text += page.extract_text() + "\n"
-        except: pass
-    return combined_text
-
-# ==========================================
-# 3. ส่วนหน้าแอปหลัก (Main App Interface)
-# ==========================================
-
+# --- [ส่วนที่ 3: หน้าจอหลักและการทำงาน] ---
 def main():
     st.set_page_config(page_title="AI KUSRC", page_icon="🦖", layout="wide")
     apply_custom_css()
 
-    if "lang" not in st.session_state: st.session_state.lang = "TH"
+    # ตั้งค่าตัวแปรเริ่มต้น
     if "messages" not in st.session_state: st.session_state.messages = []
-    
-    curr = translation[st.session_state.lang]
-    model = load_model()
+    if "lang" not in st.session_state: st.session_state.lang = "TH"
 
-    # --- Sidebar ---
+    # Sidebar
     with st.sidebar:
-        st.markdown(f'<div class="univ-name">{curr["univ_name"]}</div>', unsafe_allow_html=True)
-        st.markdown(f'<div style="text-align:center; color:#666; font-size:11px; margin-top:-10px; letter-spacing:2px;">{curr["campus"]}</div>', unsafe_allow_html=True)
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button(f"🌐 {st.session_state.lang}"):
-            st.session_state.lang = "EN" if st.session_state.lang == "TH" else "TH"
-            st.rerun()
-
+        st.markdown('<div class="univ-name">Kasetsart University</div>', unsafe_allow_html=True)
+        st.markdown('<div style="text-align:center; color:#8291aa; font-size:10px;">SRIRACHA CAMPUS</div>', unsafe_allow_html=True)
         st.divider()
-        if st.button(curr["new_chat"]):
-            st.session_state.messages = []
-            st.rerun()
+        if st.button("🔄 ล้างแชท (Clear)"): st.session_state.messages = []
+        
+    # แสดงแชท
+    for m in st.session_state.messages:
+        with st.chat_message(m["role"]): st.markdown(m["content"])
 
-        st.markdown(f"#### 🎓 บริการนิสิต")
-        st.button(curr["exam_table"])
-        st.button(curr["gpa_calc"])
-        st.button(curr["forms"])
-
-    # --- Chat Interface ---
-    st.markdown(f"<h2 style='color: #006633;'><span style='font-size:40px;'>🦖</span> AI KUSRC</h2>", unsafe_allow_html=True)
-
-    # แสดงประวัติการแชท
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"], avatar="🧑‍🎓" if message["role"] == "user" else "🦖"):
-            st.markdown(message["content"])
-
-    # ส่วนรับคำถาม
-    if prompt := st.chat_input(curr["input_placeholder"]):
-        st.chat_message("user", avatar="🧑‍🎓").markdown(prompt)
+    # รับคำถาม
+    if prompt := st.chat_input("พิมพ์ถามพี่นนทรีได้เลย..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"): st.markdown(prompt)
 
-        with st.chat_message("assistant", avatar="🦖"):
-            # 1. เช็คเลขห้องก่อน
-            room_info = get_room_info(prompt, st.session_state.lang)
-            if room_info:
-                full_response = room_info
-                st.markdown(full_response)
+        with st.chat_message("assistant"):
+            # เช็คเรื่องห้องก่อน
+            room = get_room_info(prompt, st.session_state.lang)
+            if room:
+                response = room
             else:
-                # 2. ถ้าไม่ใช่เรื่องห้อง ให้ถาม AI Gemini
-                placeholder = st.empty()
-                placeholder.markdown(curr["loading"])
-                
-                if model:
-                    kb = get_knowledge_base()
-                    full_context = f"คุณคือ {curr['ai_identity']} จงตอบคำถามโดยใช้ข้อมูลนี้: {kb}\nคำถาม: {prompt}"
-                    try:
-                        response = model.generate_content(full_context)
-                        full_response = response.text
-                        placeholder.markdown(full_response)
-                    except:
-                        full_response = curr["not_found"]
-                        placeholder.markdown(full_response)
-                else:
-                    full_response = "กรุณาตั้งค่า GEMINI_API_KEY ใน Secrets ก่อนนะจ๊ะ"
-                    placeholder.markdown(full_response)
-
-        st.session_state.messages.append({"role": "assistant", "content": full_response})
+                response = "พี่นนทรีได้รับข้อความแล้วครับ กำลังประมวลผล..." # ส่วนนี้เชื่อม AI ต่อได้
+            
+            st.markdown(response)
+            st.session_state.messages.append({"role": "assistant", "content": response})
 
 if __name__ == "__main__":
     main()
